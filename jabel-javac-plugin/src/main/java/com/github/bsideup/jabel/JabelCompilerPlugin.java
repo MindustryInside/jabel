@@ -82,16 +82,6 @@ public class JabelCompilerPlugin implements Plugin {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        System.out.println(
-                ENABLED_FEATURES.stream()
-                        .map(Enum::name)
-                        .collect(Collectors.joining(
-                                "\n\t- ",
-                                "Jabel: initialized. Enabled features: \n\t- ",
-                                "\n"
-                        ))
-        );
     }
 
     @Override
