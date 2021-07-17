@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id 'maven-publish'
 }
 
 repositories {
@@ -31,14 +30,4 @@ javadoc {
 task javadocJar(type: Jar) {
     classifier 'javadoc'
     from javadoc
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) { publication ->
-            from components.java
-            artifact sourcesJar
-            artifact javadocJar
-        }
-    }
 }
