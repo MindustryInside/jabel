@@ -4,7 +4,8 @@ plugins {
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
+    mavenLocal()
 }
 
 group = 'com.github.MindustryInside'
@@ -13,8 +14,9 @@ sourceCompatibility = 8
 targetCompatibility = 8
 
 dependencies {
-    implementation 'net.bytebuddy:byte-buddy:1.10.14'
-    implementation 'net.bytebuddy:byte-buddy-agent:1.10.14'
+    implementation 'net.bytebuddy:byte-buddy:1.11.8'
+    implementation 'net.bytebuddy:byte-buddy-agent:1.11.8'
+    implementation 'net.java.dev.jna:jna:5.8.0'
 }
 
 task sourcesJar(type: Jar) {
