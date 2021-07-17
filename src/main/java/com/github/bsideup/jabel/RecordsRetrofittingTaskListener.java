@@ -43,20 +43,10 @@ class RecordsRetrofittingTaskListener implements TaskListener {
                 Name methodName = names.toString;
                 List<Type> argTypes = List.nil();
                 if (!containsMethod(classDecl, methodName)) {
-                    JCTree.JCMethodDecl methodDecl = make.MethodDef(
-                            new Symbol.MethodSymbol(
-                                    Flags.PUBLIC,
-                                    methodName,
-                                    new Type.MethodType(
-                                            argTypes,
-                                            syms.stringType,
-                                            List.nil(),
-                                            syms.methodClass
-                                    ),
-                                    syms.objectType.tsym
-                            ),
-                            make.Block(0, generateToString(classDecl))
-                    );
+                    JCTree.JCMethodDecl methodDecl = make.MethodDef(new Symbol.MethodSymbol(Flags.PUBLIC,
+                            methodName, new Type.MethodType(argTypes, syms.stringType, List.nil(), syms.methodClass),
+                            syms.objectType.tsym), make.Block(0, generateToString(classDecl)));
+
                     classDecl.defs = classDecl.defs.append(methodDecl);
                 }
             }
@@ -65,20 +55,9 @@ class RecordsRetrofittingTaskListener implements TaskListener {
                 Name methodName = names.hashCode;
                 List<Type> argTypes = List.nil();
                 if (!containsMethod(classDecl, methodName)) {
-                    classDecl.defs = classDecl.defs.append(make.MethodDef(
-                            new Symbol.MethodSymbol(
-                                    Flags.PUBLIC,
-                                    methodName,
-                                    new Type.MethodType(
-                                            argTypes,
-                                            syms.intType,
-                                            List.nil(),
-                                            syms.methodClass
-                                    ),
-                                    syms.objectType.tsym
-                            ),
-                            make.Block(0, generateHashCode(classDecl))
-                    ));
+                    classDecl.defs = classDecl.defs.append(make.MethodDef(new Symbol.MethodSymbol(Flags.PUBLIC,
+                            methodName, new Type.MethodType(argTypes, syms.intType, List.nil(), syms.methodClass),
+                            syms.objectType.tsym), make.Block(0, generateHashCode(classDecl))));
                 }
             }
 
@@ -86,23 +65,15 @@ class RecordsRetrofittingTaskListener implements TaskListener {
                 Name methodName = names.equals;
                 List<Type> argTypes = List.of(syms.objectType);
                 if (!containsMethod(classDecl, methodName)) {
-                    Symbol.MethodSymbol methodSymbol = new Symbol.MethodSymbol(
-                            Flags.PUBLIC | Flags.FINAL,
-                            methodName,
-                            new Type.MethodType(
-                                    argTypes,
-                                    syms.booleanType,
-                                    List.nil(),
-                                    syms.methodClass
-                            ),
-                            syms.objectType.tsym
-                    );
+                    Symbol.MethodSymbol methodSymbol = new Symbol.MethodSymbol(Flags.PUBLIC | Flags.FINAL,
+                            methodName, new Type.MethodType(argTypes, syms.booleanType, List.nil(), syms.methodClass),
+                            syms.objectType.tsym);
+
                     Symbol.VarSymbol firstParameter = methodSymbol.params().head;
 
-                    JCTree.JCMethodDecl methodDecl = make.MethodDef(
-                            methodSymbol,
-                            make.Block(0, generateEquals(classDecl, firstParameter.name))
-                    );
+                    JCTree.JCMethodDecl methodDecl = make.MethodDef(methodSymbol,
+                            make.Block(0, generateEquals(classDecl, firstParameter.name)));
+
                     // THIS ONE IS IMPORTANT! Otherwise, Flow.AssignAnalyzer#visitVarDef will have track=false
                     methodDecl.params.head.pos = classDecl.pos;
                     classDecl.defs = classDecl.defs.append(methodDecl);
@@ -185,13 +156,8 @@ class RecordsRetrofittingTaskListener implements TaskListener {
     }
 
     private List<JCTree.JCStatement> generateToString(JCTree.JCClassDecl classDecl) {
-        JCTree.JCExpression stringBuilder = make.NewClass(
-                null,
-                null,
-                make.QualIdent(syms.stringBuilderType.tsym),
-                List.of(make.Literal(classDecl.name + "[")),
-                null
-        );
+        JCTree.JCExpression stringBuilder = make.NewClass(null, null, make.QualIdent(syms.stringBuilderType.tsym),
+                List.of(make.Literal(classDecl.name + "[")), null);
 
         for (Iterator<JCTree.JCVariableDecl> iterator = getRecordComponents(classDecl).iterator(); iterator.hasNext(); ) {
             JCTree.JCVariableDecl fieldDecl = iterator.next();
@@ -220,75 +186,45 @@ class RecordsRetrofittingTaskListener implements TaskListener {
 
         // if (o == this) return true;
         {
-            statements.add(make.If(
-                    make.Binary(
-                            JCTree.Tag.EQ,
-                            make.This(Type.noType),
-                            make.Ident(otherName)
-                    ),
-                    make.Return(make.Literal(true)),
-                    null
-            ));
+            statements.add(make.If(make.Binary(JCTree.Tag.EQ, make.This(Type.noType),
+                    make.Ident(otherName)), make.Return(make.Literal(true)), null));
         }
 
         // if (o == null) return false;
         {
-            statements.add(make.If(
-                    make.Binary(
-                            JCTree.Tag.EQ,
-                            make.Ident(otherName),
-                            make.Literal(TypeTag.BOT, null)
-                    ),
-                    make.Return(make.Literal(false)),
-                    null
-            ));
+            statements.add(make.If(make.Binary(JCTree.Tag.EQ, make.Ident(otherName), make.Literal(TypeTag.BOT, null)),
+                    make.Return(make.Literal(false)), null));
         }
 
         // if (o.getClass() != getClass()) return false;
         {
-            statements.add(make.If(
-                    make.Binary(
-                            JCTree.Tag.EQ,
-                            make.App(make.Select(make.Ident(otherName), names.getClass).setType(syms.classType)),
-                            make.App(make.Select(make.This(Type.noType), names.getClass).setType(syms.classType))
-                    ),
+            statements.add(make.If(make.Binary(JCTree.Tag.EQ,
+                    make.App(make.Select(make.Ident(otherName), names.getClass).setType(syms.classType)),
+                    make.App(make.Select(make.This(Type.noType), names.getClass).setType(syms.classType))),
                     make.Block(0, List.nil()),
-                    make.Return(make.Literal(false))
-            ));
+                    make.Return(make.Literal(false))));
         }
 
         // fields
         {
-            for (
-                    Iterator<JCTree.JCVariableDecl> iterator = getRecordComponents(classDecl).iterator();
-                    iterator.hasNext();
-            ) {
+            for (Iterator<JCTree.JCVariableDecl> iterator = getRecordComponents(classDecl).iterator(); iterator.hasNext(); ) {
                 JCTree.JCVariableDecl fieldDecl = iterator.next();
 
                 JCTree.JCExpression myFieldAccess = make.Select(make.This(Type.noType), fieldDecl.name);
                 JCTree.JCExpression otherFieldAccess = make.Select(
                         make.TypeCast(make.Ident(classDecl.name), make.Ident(otherName)),
-                        fieldDecl.name
-                );
+                        fieldDecl.name);
 
                 JCTree.JCExpression condition;
                 if (fieldDecl.getType() instanceof JCTree.JCPrimitiveTypeTree) {
                     condition = make.Binary(JCTree.Tag.EQ, otherFieldAccess, myFieldAccess);
                 } else {
+                    // call Objects.equals
                     condition = make.App(
-                            // call Objects.equals
-                            make.Select(
-                                    make.QualIdent(syms.objectsType.tsym),
-                                    names.equals
-                            ).setType(syms.objectsType),
-                            List.of(otherFieldAccess, myFieldAccess)
-                    );
+                            make.Select(make.QualIdent(syms.objectsType.tsym), names.equals).setType(syms.objectsType),
+                            List.of(otherFieldAccess, myFieldAccess));
                 }
-                statements.add(make.If(
-                        condition,
-                        make.Block(0, List.nil()),
-                        make.Return(make.Literal(false))
-                ));
+                statements.add(make.If(condition, make.Block(0, List.nil()), make.Return(make.Literal(false))));
             }
         }
 
@@ -299,10 +235,7 @@ class RecordsRetrofittingTaskListener implements TaskListener {
     private List<JCTree.JCStatement> generateHashCode(JCTree.JCClassDecl classDecl) {
         ListBuffer<JCTree.JCExpression> expressions = new ListBuffer<>();
 
-        for (
-                Iterator<JCTree.JCVariableDecl> iterator = getRecordComponents(classDecl).iterator();
-                iterator.hasNext();
-        ) {
+        for (Iterator<JCTree.JCVariableDecl> iterator = getRecordComponents(classDecl).iterator(); iterator.hasNext(); ) {
             JCTree.JCVariableDecl fieldDecl = iterator.next();
 
             JCTree fType = fieldDecl.getType();
@@ -316,31 +249,19 @@ class RecordsRetrofittingTaskListener implements TaskListener {
                         break;
                     case FLOAT:
                         /* this.fieldName != 0f ? Float.floatToIntBits(this.fieldName) : 0 */
-                        expressions.append(
-                                make.Conditional(
-                                        make.Binary(JCTree.Tag.NE, myFieldAccess, make.Literal(0f)),
-                                        make.App(
-                                                make.Select(
-                                                        make.Ident(names.fromString("Float")),
-                                                        names.fromString("floatToIntBits")).setType(syms.intType),
-                                                List.of(myFieldAccess)
-                                        ),
-                                        make.Literal(TypeTag.INT, 0)
-                                )
+                        expressions.append(make.Conditional(make.Binary(JCTree.Tag.NE, myFieldAccess, make.Literal(0f)),
+                                make.App(make.Select(make.Ident(names.fromString("Float")),
+                                        names.fromString("floatToIntBits")).setType(syms.intType), List.of(myFieldAccess)),
+                                        make.Literal(TypeTag.INT, 0))
                         );
                         break;
                     case DOUBLE:
                         /* longToIntForHashCode(Double.doubleToLongBits(this.fieldName)) */
-                        expressions.append(
-                                longToIntForHashCode(
-                                        make.App(
-                                                make.Select(
-                                                        make.Ident(names.fromString("Double")),
-                                                        names.fromString("doubleToLongBits")).setType(syms.intType),
-                                                List.of(myFieldAccess)
-                                        )
-                                )
-                        );
+                        expressions.append(longToIntForHashCode(make.App(make.Select(
+                                make.Ident(names.fromString("Double")),
+                                names.fromString("doubleToLongBits")).setType(syms.intType),
+                                List.of(myFieldAccess))));
+
                         break;
                     default:
                     case BYTE:
@@ -352,30 +273,17 @@ class RecordsRetrofittingTaskListener implements TaskListener {
                         break;
                 }
             } else if (fType instanceof JCTree.JCArrayTypeTree) {
-                expressions.append(
-                        make.App(
-                                make.Select(
-                                        make.Select(
-                                                make.Select(
-                                                        make.Ident(names.fromString("java")),
-                                                        names.fromString("util")
-                                                ),
-                                                names.fromString("Arrays")
-                                        ),
-                                        names.fromString("hashCode")
-                                ).setType(syms.intType),
-                                List.of(myFieldAccess)
-                        )
-                );
+                expressions.append(make.App(make.Select(make.Select(
+                        make.Select(make.Ident(names.fromString("java")),
+                                names.fromString("util")), names.fromString("Arrays")),
+                        names.fromString("hashCode")).setType(syms.intType),
+                        List.of(myFieldAccess)));
             } else {
                 /* (this.fieldName != null ? this.fieldName.hashCode() : 0) */
-                expressions.append(
-                        make.Conditional(
-                                make.Binary(JCTree.Tag.NE, myFieldAccess, make.Literal(TypeTag.BOT, null)),
-                                make.App(make.Select(myFieldAccess, names.hashCode).setType(syms.intType)),
-                                make.Literal(0)
-                        )
-                );
+                expressions.append(make.Conditional(
+                        make.Binary(JCTree.Tag.NE, myFieldAccess, make.Literal(TypeTag.BOT, null)),
+                        make.App(make.Select(myFieldAccess, names.hashCode).setType(syms.intType)),
+                        make.Literal(0)));
             }
         }
 
@@ -383,26 +291,13 @@ class RecordsRetrofittingTaskListener implements TaskListener {
 
         Name resultName = names.fromString("result");
 
-        statements.append(
-                make.VarDef(
-                        make.Modifiers(0L),
-                        resultName,
-                        make.TypeIdent(syms.intType.getTag()),
-                        make.Literal(0)
-                )
-        );
+        statements.append(make.VarDef(make.Modifiers(0L), resultName,
+                make.TypeIdent(syms.intType.getTag()), make.Literal(0)));
+
         for (JCTree.JCExpression expression : expressions) {
             // result = 31 * result + ${expr}
-            statements.append(make.Exec(
-                    make.Assign(
-                            make.Ident(resultName),
-                            make.Binary(
-                                    JCTree.Tag.PLUS,
-                                    make.Binary(JCTree.Tag.MUL, make.Literal(TypeTag.INT, 31), make.Ident(resultName)),
-                                    expression
-                            )
-                    )
-            ));
+            statements.append(make.Exec(make.Assign(make.Ident(resultName), make.Binary(JCTree.Tag.PLUS,
+                    make.Binary(JCTree.Tag.MUL, make.Literal(TypeTag.INT, 31), make.Ident(resultName)), expression))));
         }
 
         statements.append(make.Return(make.Ident(resultName)));
@@ -411,9 +306,8 @@ class RecordsRetrofittingTaskListener implements TaskListener {
 
     public JCTree.JCExpression longToIntForHashCode(JCTree.JCExpression ref) {
         /* (int) (ref ^ ref >>> 32) */
-        return make.TypeCast(make.TypeIdent(syms.intType.getTag()),
-                make.Parens(make.Binary(JCTree.Tag.BITXOR, ref,
-                        make.Parens(make.Binary(JCTree.Tag.USR, ref, make.Literal(32))))));
+        return make.TypeCast(make.TypeIdent(syms.intType.getTag()), make.Parens(make.Binary(JCTree.Tag.BITXOR, ref,
+                make.Parens(make.Binary(JCTree.Tag.USR, ref, make.Literal(32))))));
     }
 
     private static class MandatoryDesugarAnnotationTreeScanner extends TreeScanner<Void, Void> {
@@ -438,11 +332,7 @@ class RecordsRetrofittingTaskListener implements TaskListener {
                     JavaFileObject oldSource = log.useSource(compilationUnit.getSourceFile());
                     try {
                         log.error((JCTree.JCClassDecl) node, new JCDiagnostic.Error(
-                                "jabel",
-                                        "missing.desugar.on.record",
-                                        "Must be annotated with @Desugar"
-                                )
-                        );
+                                "jabel", "missing.desugar.on.record", "Must be annotated with @Desugar"));
                     } finally {
                         log.useSource(oldSource);
                     }
